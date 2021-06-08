@@ -1,11 +1,12 @@
 # dependencies
-node_modules
+./frontend/node_modules
 
 # production
-build
+./blockchain/build
 
 # config
-/backend/config
+./blockchain/config
+./frontend/config
 
 # misc
 .DS_Store
@@ -21,3 +22,4 @@ yarn-error.log*
 
 backend/.idea
 frontend/.idea
+/.idea
