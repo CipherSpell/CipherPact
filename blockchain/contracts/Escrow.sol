@@ -20,8 +20,11 @@ contract Escrow {
     enum State {
         AWAITING_PAYMENT,
         AWAITING_DELIVERY,
-        COMPLETE
+        COMPLETE,
+        EXPIRED
     }
+
+    event AgreementHashCreated(address indexed seller, bytes32 indexed hash);
 
     mapping(bytes32 => State) public currentState;
 
@@ -36,6 +39,11 @@ contract Escrow {
         _;
     }
 
+    modifier notExpired(bytes32 identifierHash) {
+        require(currentState[identifierHash] != State.EXPIRED, "This escrow agreement has expired");
+        _;
+    }
+
     //Seller sends contract productPrice + collateral
     function newEscrow(uint _productPrice, string memory _productHash) public payable returns (bytes32) {
         require(msg.value >= _productPrice * GUARANTEE_RATIO, string(abi.encodePacked("You must deposit ", GUARANTEE_RATIO,
@@ -43,23 +51,25 @@ contract Escrow {
 
         collateral[msg.sender] = msg.value - _productPrice;
 
-        bytes32 hash = keccak256(abi.encodePacked(_productPrice, _productHash, msg.sender));
+        bytes32 hash = keccak256(abi.encodePacked(_productPrice, _productHash, msg.sender, block.timestamp));
 
         productPrice[hash] = _productPrice;
         productHash[hash] = _productHash;
         seller[hash] = msg.sender;
 
+        emit AgreementHashCreated(msg.sender, hash);
+
         return hash;
     }
 
-    function deposit(bytes32 identifierHash) verifyGuaranteeRatio(identifierHash) public payable {
+    function deposit(bytes32 identifierHash) verifyGuaranteeRatio(identifierHash) notExpired(identifierHash) public payable {
         collateral[msg.sender] = msg.value - productPrice[identifierHash];
         buyer[identifierHash] = msg.sender;
         currentState[identifierHash] = State.AWAITING_DELIVERY;
     }
 
-    function confirmDelivery(bytes32 identifierHash) onlyBuyer(identifierHash) public {
-        payable(seller[identifierHash]).transfer(collateral[seller[identifierHash]]);
+    function confirmDelivery(bytes32 identifierHash) onlyBuyer(identifierHash) notExpired(identifierHash) public {
+        payable(seller[identifierHash]).transfer(collateral[seller[identifierHash]] + (productPrice[identifierHash] * 2));
         payable(buyer[identifierHash]).transfer(collateral[msg.sender]);
 
         currentState[identifierHash] = State.COMPLETE;
