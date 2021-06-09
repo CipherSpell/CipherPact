@@ -10,12 +10,12 @@ contract Escrow {
         owner = msg.sender;
     }
 
-    mapping(bytes32 => uint) productPrice;
-    mapping(bytes32 => string) productHash;
-    mapping(bytes32 => address) private seller;
-    mapping(bytes32 => address) private buyer;
+    mapping(bytes32 => uint) public productPrice;
+    mapping(bytes32 => string) public productHash;
+    mapping(bytes32 => address) public seller;
+    mapping(bytes32 => address) public buyer;
 
-    mapping(bytes32 => uint) collateral;
+    mapping(address => uint) public collateral;
 
     enum State {
         AWAITING_PAYMENT,
@@ -23,7 +23,7 @@ contract Escrow {
         COMPLETE
     }
 
-    mapping(bytes32 => State) currentState;
+    mapping(bytes32 => State) public currentState;
 
     modifier verifyGuaranteeRatio(bytes32 identifierHash) {
         require(msg.value >= productPrice[identifierHash] * GUARANTEE_RATIO, string(abi.encodePacked("You must deposit ", GUARANTEE_RATIO,
@@ -36,15 +36,12 @@ contract Escrow {
         _;
     }
 
-    //Seller gets productPrice + collateral
-    function collateralizedPrice(uint _productPrice) public returns (bytes32, uint) {
-        //Get oracle price feed to calculate price in ETH, seller will have to send to smart contract
-    }
-
     //Seller sends contract productPrice + collateral
-    function newEscrow(uint _productPrice, string memory _productHash, bytes32 collateralIdentifier) public payable returns (bytes32) {
-        require(msg.value >= collateral[collateralIdentifier], string(abi.encodePacked("You must deposit ", GUARANTEE_RATIO,
+    function newEscrow(uint _productPrice, string memory _productHash) public payable returns (bytes32) {
+        require(msg.value >= _productPrice * GUARANTEE_RATIO, string(abi.encodePacked("You must deposit ", GUARANTEE_RATIO,
             "x the price of the product as guarantee for the significance of initiating an agreement (Refundable upon contract fulfillment)")));
+
+        collateral[msg.sender] = msg.value - _productPrice;
 
         bytes32 hash = keccak256(abi.encodePacked(_productPrice, _productHash, msg.sender));
 
@@ -56,12 +53,16 @@ contract Escrow {
     }
 
     function deposit(bytes32 identifierHash) verifyGuaranteeRatio(identifierHash) public payable {
+        collateral[msg.sender] = msg.value - productPrice[identifierHash];
         buyer[identifierHash] = msg.sender;
         currentState[identifierHash] = State.AWAITING_DELIVERY;
     }
 
     function confirmDelivery(bytes32 identifierHash) onlyBuyer(identifierHash) public {
+        payable(seller[identifierHash]).transfer(productPrice[identifierHash]);
+        payable(buyer[identifierHash]).transfer(productPrice[identifierHash]);
 
+        currentState[identifierHash] = State.COMPLETE;
     }
 
 }
