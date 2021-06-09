@@ -59,8 +59,8 @@ contract Escrow {
     }
 
     function confirmDelivery(bytes32 identifierHash) onlyBuyer(identifierHash) public {
-        payable(seller[identifierHash]).transfer(productPrice[identifierHash]);
-        payable(buyer[identifierHash]).transfer(productPrice[identifierHash]);
+        payable(seller[identifierHash]).transfer(collateral[seller[identifierHash]]);
+        payable(buyer[identifierHash]).transfer(collateral[msg.sender]);
 
         currentState[identifierHash] = State.COMPLETE;
     }
