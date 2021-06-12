@@ -51,7 +51,11 @@ contract Escrow {
 
         collateral[msg.sender] = msg.value - _productPrice;
 
-        bytes32 hash = keccak256(abi.encodePacked(_productPrice, _productHash, msg.sender, block.timestamp));
+        bytes32 hash = keccak256(abi.encode(_productPrice, _productHash, msg.sender,
+            keccak256(abi.encodePacked(block.timestamp + block.difficulty + uint(
+            keccak256(abi.encodePacked(block.coinbase))) / block.timestamp))
+            )
+        );
 
         productPrice[hash] = _productPrice;
         productHash[hash] = _productHash;
@@ -62,17 +66,28 @@ contract Escrow {
         return hash;
     }
 
+    /* Allows seller to cancel the agreement and retrieves his eth. Can only be called before buyer deposits
+     * ether and locks the contract
+     */
+    function cancelAgreement() public {
+
+    }
+
     function deposit(bytes32 identifierHash) verifyGuaranteeRatio(identifierHash) notExpired(identifierHash) public payable {
         collateral[msg.sender] = msg.value - productPrice[identifierHash];
         buyer[identifierHash] = msg.sender;
         currentState[identifierHash] = State.AWAITING_DELIVERY;
     }
 
-    function confirmDelivery(bytes32 identifierHash) onlyBuyer(identifierHash) notExpired(identifierHash) public {
-        payable(seller[identifierHash]).transfer(collateral[seller[identifierHash]] + (productPrice[identifierHash] * 2));
-        payable(buyer[identifierHash]).transfer(collateral[msg.sender]);
+    function confirmDelivery(bytes32 identifierHash, bool accepted) onlyBuyer(identifierHash) notExpired(identifierHash) public {
+        if(accepted) {
+            payable(seller[identifierHash]).transfer(collateral[seller[identifierHash]] + (productPrice[identifierHash] * 2));
+            payable(buyer[identifierHash]).transfer(collateral[msg.sender]);
 
-        currentState[identifierHash] = State.COMPLETE;
+            currentState[identifierHash] = State.COMPLETE;
+        } else {
+
+        }
     }
 
 }
