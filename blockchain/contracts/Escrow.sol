@@ -55,6 +55,22 @@ contract Escrow {
         _;
     }
 
+    modifier isAwaitingPayment(bytes32 identifierHash) {
+        require(currentState[identifierHash] == State.AWAITING_PAYMENT, "Payment already received");
+        _;
+    }
+
+    modifier isAwaitingDelivery(bytes32 identifierHash) {
+        require(currentState[identifierHash] == State.AWAITING_DELIVERY, "Delivery already received");
+        _;
+    }
+
+    function resetBalances(bytes32 identifierHash) internal {
+        collateral[seller[identifierHash]] = 0;
+        collateral[buyer[identifierHash]] = 0;
+        productPrice[identifierHash] = 0;
+    }
+
     //Seller sends contract productPrice + collateral
     function newEscrow(uint _productPrice, string memory _productHash) public payable returns (bytes32) {
         require(msg.value >= _productPrice * GUARANTEE_RATIO, string(abi.encodePacked("You must deposit ", GUARANTEE_RATIO,
@@ -80,26 +96,37 @@ contract Escrow {
     /* Allows seller to cancel the agreement and retrieves his eth. Can only be called before buyer deposits
      * ether and locks the contract
      */
-    function cancelAgreement() public {
+    function cancelAgreement(bytes32 identifierHash) public {
+        require(currentState[identifierHash] == State.AWAITING_PAYMENT, "Contract has been locked, action is now impossible");
+        payable(seller[identifierHash]).transfer(collateral[seller[identifierHash]] + productPrice[identifierHash]);
 
+        resetBalances(identifierHash);
+
+        currentState[identifierHash] = State.EXPIRED;
     }
 
-    function deposit(bytes32 identifierHash) verifyGuaranteeRatio(identifierHash) notExpired(identifierHash) public payable {
+    function deposit(bytes32 identifierHash) verifyGuaranteeRatio(identifierHash) notExpired(identifierHash) isAwaitingPayment(identifierHash) public payable {
         collateral[msg.sender] = msg.value - productPrice[identifierHash];
         buyer[identifierHash] = msg.sender;
         currentState[identifierHash] = State.AWAITING_DELIVERY;
     }
 
-    function confirmDelivery(bytes32 identifierHash) onlyBuyer(identifierHash) notExpired(identifierHash) public {
+    function confirmDelivery(bytes32 identifierHash) onlyBuyer(identifierHash) notExpired(identifierHash) isAwaitingDelivery(identifierHash) public {
         payable(seller[identifierHash]).transfer(collateral[seller[identifierHash]] + (productPrice[identifierHash] * 2));
         payable(buyer[identifierHash]).transfer(collateral[msg.sender]);
+
+        resetBalances(identifierHash);
 
         currentState[identifierHash] = State.COMPLETE;
     }
 
     function buyerDidNotConfirm(bytes32 identifierHash) onlySeller(identifierHash) isExpired(identifierHash) public {
         currentState[identifierHash] = State.EXPIRED;
-        payable(seller[identifierHash]).transfer(collateral[seller[identifierHash]] + (productPrice[identifierHash] * 2));
+        payable(seller[identifierHash]).transfer(collateral[seller[identifierHash]] + productPrice[identifierHash]);
+
+        resetBalances(identifierHash);
+
+        currentState[identifierHash] = State.EXPIRED;
     }
 
 }
