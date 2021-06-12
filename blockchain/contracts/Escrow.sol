@@ -25,7 +25,11 @@ contract Escrow {
         EXPIRED
     }
 
-    event AgreementHashCreated(address indexed seller, bytes32 indexed hash);
+    event AgreementHashCreated(address seller, bytes32 indexed hash);
+    event DepositMade(address buyer, bytes32 indexed hash);
+    event AgreementCancelled(address seller, bytes32 indexed hash);
+    event DeliveryConfirmed(address buyer, bytes32 indexed hash);
+    event RefundRequested(address seller, bytes32 indexed hash, uint amount);
 
     mapping(bytes32 => State) public currentState;
 
@@ -101,6 +105,7 @@ contract Escrow {
         payable(seller[identifierHash]).transfer(collateral[seller[identifierHash]] + productPrice[identifierHash]);
 
         resetBalances(identifierHash);
+        emit AgreementCancelled(msg.sender, identifierHash);
 
         currentState[identifierHash] = State.EXPIRED;
     }
@@ -108,6 +113,9 @@ contract Escrow {
     function deposit(bytes32 identifierHash) verifyGuaranteeRatio(identifierHash) notExpired(identifierHash) isAwaitingPayment(identifierHash) public payable {
         collateral[msg.sender] = msg.value - productPrice[identifierHash];
         buyer[identifierHash] = msg.sender;
+
+        emit DepositMade(msg.sender, identifierHash);
+
         currentState[identifierHash] = State.AWAITING_DELIVERY;
     }
 
@@ -116,6 +124,7 @@ contract Escrow {
         payable(buyer[identifierHash]).transfer(collateral[msg.sender]);
 
         resetBalances(identifierHash);
+        emit DeliveryConfirmed(msg.sender, identifierHash);
 
         currentState[identifierHash] = State.COMPLETE;
     }
@@ -124,6 +133,7 @@ contract Escrow {
         currentState[identifierHash] = State.EXPIRED;
         payable(seller[identifierHash]).transfer(collateral[seller[identifierHash]] + productPrice[identifierHash]);
 
+        emit RefundRequested(msg.sender, identifierHash, collateral[seller[identifierHash]] + productPrice[identifierHash]);
         resetBalances(identifierHash);
 
         currentState[identifierHash] = State.EXPIRED;
