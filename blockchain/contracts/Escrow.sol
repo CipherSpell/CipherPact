@@ -16,6 +16,7 @@ contract Escrow {
     mapping(bytes32 => address) public buyer;
 
     mapping(address => uint) public collateral;
+    mapping(bytes32 => uint) public expiryDates;
 
     enum State {
         AWAITING_PAYMENT,
@@ -39,8 +40,18 @@ contract Escrow {
         _;
     }
 
+    modifier onlySeller(bytes32 identifierHash) {
+        require(msg.sender == seller[identifierHash], "Only the designated seller for this Escrow Agreement can call this function");
+        _;
+    }
+
     modifier notExpired(bytes32 identifierHash) {
         require(currentState[identifierHash] != State.EXPIRED, "This escrow agreement has expired");
+        _;
+    }
+
+    modifier isExpired(bytes32 identifierHash) {
+        require(block.timestamp >= expiryDates[identifierHash], "This escrow agreement has not yet expired");
         _;
     }
 
@@ -79,15 +90,16 @@ contract Escrow {
         currentState[identifierHash] = State.AWAITING_DELIVERY;
     }
 
-    function confirmDelivery(bytes32 identifierHash, bool accepted) onlyBuyer(identifierHash) notExpired(identifierHash) public {
-        if(accepted) {
-            payable(seller[identifierHash]).transfer(collateral[seller[identifierHash]] + (productPrice[identifierHash] * 2));
-            payable(buyer[identifierHash]).transfer(collateral[msg.sender]);
+    function confirmDelivery(bytes32 identifierHash) onlyBuyer(identifierHash) notExpired(identifierHash) public {
+        payable(seller[identifierHash]).transfer(collateral[seller[identifierHash]] + (productPrice[identifierHash] * 2));
+        payable(buyer[identifierHash]).transfer(collateral[msg.sender]);
 
-            currentState[identifierHash] = State.COMPLETE;
-        } else {
+        currentState[identifierHash] = State.COMPLETE;
+    }
 
-        }
+    function buyerDidNotConfirm(bytes32 identifierHash) onlySeller(identifierHash) isExpired(identifierHash) public {
+        currentState[identifierHash] = State.EXPIRED;
+        payable(seller[identifierHash]).transfer(collateral[seller[identifierHash]] + (productPrice[identifierHash] * 2));
     }
 
 }
