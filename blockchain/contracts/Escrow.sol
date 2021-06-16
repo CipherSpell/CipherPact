@@ -10,6 +10,8 @@ contract Escrow {
         owner = msg.sender;
     }
 
+    //TODO Reconstruct as enums
+
     mapping(bytes32 => uint) public productPrice;
     mapping(bytes32 => string) public productHash;
     mapping(bytes32 => address) public seller;
@@ -137,6 +139,11 @@ contract Escrow {
         resetBalances(identifierHash);
 
         currentState[identifierHash] = State.EXPIRED;
+    }
+    
+    //TODO Escrow via encrypt-and-swap
+    function disputeDelivery(bytes32 identifierHash) onlyBuyer(identifierHash) public {
+
     }
 
 }
