@@ -3,22 +3,32 @@ pragma solidity ^0.8.4;
 contract Escrow {
     address owner;
 
-    //Buyer will stake 2x his purchase value, which the extra will be refunded upon contract fulfillment
+    // Buyer will stake 2x his purchase value, which the extra will be refunded upon contract fulfillment
     uint8 constant GUARANTEE_RATIO = 2;
 
     constructor() {
         owner = msg.sender;
     }
 
-    //TODO Reconstruct as enums
+    struct Agent {
+        address addr;
+        uint balance;
 
-    mapping(bytes32 => uint) public productPrice;
-    mapping(bytes32 => string) public productHash;
-    mapping(bytes32 => address) public seller;
-    mapping(bytes32 => address) public buyer;
+        bytes32 pubKeyHalf1;
+        bytes32 pubKeyHalf2;
+    }
 
-    mapping(address => uint) public collateral;
-    mapping(bytes32 => uint) public expiryDates;
+    struct Agreement {
+        bytes32 agreementIdentifier;
+        State currentState;
+
+        uint productPrice;
+        string productHash; // placeholder, will have more details once encrypt-and-swap is implemented
+        Agent buyer;
+        Agent seller;
+        uint expiryDate;
+    }
+    mapping(bytes32 => Agreement) public agreements;
 
     enum State {
         AWAITING_PAYMENT,
@@ -33,56 +43,53 @@ contract Escrow {
     event DeliveryConfirmed(address buyer, bytes32 indexed hash);
     event RefundRequested(address seller, bytes32 indexed hash, uint amount);
 
-    mapping(bytes32 => State) public currentState;
-
     modifier verifyGuaranteeRatio(bytes32 identifierHash) {
-        require(msg.value >= productPrice[identifierHash] * GUARANTEE_RATIO, string(abi.encodePacked("You must deposit ", GUARANTEE_RATIO,
+        require(msg.value >= agreements[identifierHash].productPrice * GUARANTEE_RATIO, string(abi.encodePacked("You must deposit ", GUARANTEE_RATIO,
             "x the price of the product as guarantee for the significance of confirming a purchase (Refundable upon contract fulfillment)")));
         _;
     }
 
     modifier onlyBuyer(bytes32 identifierHash) {
-        require(msg.sender == buyer[identifierHash], "Only the designated buyer for this Escrow Agreement can confirm the delivery");
+        require(msg.sender == agreements[identifierHash].buyer.addr, "Only the designated buyer for this Escrow Agreement can confirm the delivery");
         _;
     }
 
     modifier onlySeller(bytes32 identifierHash) {
-        require(msg.sender == seller[identifierHash], "Only the designated seller for this Escrow Agreement can call this function");
+        require(msg.sender == agreements[identifierHash].seller.addr, "Only the designated seller for this Escrow Agreement can call this function");
         _;
     }
 
     modifier notExpired(bytes32 identifierHash) {
-        require(currentState[identifierHash] != State.EXPIRED, "This escrow agreement has expired");
+        require(agreements[identifierHash].currentState != State.EXPIRED, "This escrow agreement has expired");
         _;
     }
 
     modifier isExpired(bytes32 identifierHash) {
-        require(block.timestamp >= expiryDates[identifierHash], "This escrow agreement has not yet expired");
+        require(block.timestamp >= agreements[identifierHash].expiryDate, "This escrow agreement has not yet expired");
         _;
     }
 
     modifier isAwaitingPayment(bytes32 identifierHash) {
-        require(currentState[identifierHash] == State.AWAITING_PAYMENT, "Payment already received");
+        require(agreements[identifierHash].currentState == State.AWAITING_PAYMENT, "Payment already received");
         _;
     }
 
     modifier isAwaitingDelivery(bytes32 identifierHash) {
-        require(currentState[identifierHash] == State.AWAITING_DELIVERY, "Delivery already received");
+        require(agreements[identifierHash].currentState == State.AWAITING_DELIVERY, "Delivery already received");
         _;
     }
 
     function resetBalances(bytes32 identifierHash) internal {
-        collateral[seller[identifierHash]] = 0;
-        collateral[buyer[identifierHash]] = 0;
-        productPrice[identifierHash] = 0;
+        agreements[identifierHash].seller.balance = 0;
+        agreements[identifierHash].buyer.balance = 0;
+
+        agreements[identifierHash].productPrice = 0;
     }
 
     //Seller sends contract productPrice + collateral
-    function newEscrow(uint _productPrice, string memory _productHash) public payable returns (bytes32) {
+    function newEscrow(uint _productPrice, string memory _productHash, uint _expiry) public payable returns (bytes32) {
         require(msg.value >= _productPrice * GUARANTEE_RATIO, string(abi.encodePacked("You must deposit ", GUARANTEE_RATIO,
             "x the price of the product as guarantee for the significance of initiating an agreement (Refundable upon contract fulfillment)")));
-
-        collateral[msg.sender] = msg.value - _productPrice;
 
         bytes32 hash = keccak256(abi.encode(_productPrice, _productHash, msg.sender,
             keccak256(abi.encodePacked(block.timestamp + block.difficulty + uint(
@@ -90,9 +97,8 @@ contract Escrow {
             )
         );
 
-        productPrice[hash] = _productPrice;
-        productHash[hash] = _productHash;
-        seller[hash] = msg.sender;
+        // placeholder buyer, seller public key set as 0 for now, will readjust when implementing encrypt-and-swap -> See https://github.com/CipherSpell/CipherPact/issues/10
+        agreements[hash] = Agreement(hash, State.AWAITING_PAYMENT, _productPrice, _productHash, Agent(address(this),0, 0, 0), Agent(msg.sender, msg.value, 0, 0), _expiry);
 
         emit AgreementHashCreated(msg.sender, hash);
 
@@ -103,45 +109,47 @@ contract Escrow {
      * ether and locks the contract
      */
     function cancelAgreement(bytes32 identifierHash) public {
-        require(currentState[identifierHash] == State.AWAITING_PAYMENT, "Contract has been locked, action is now impossible");
-        payable(seller[identifierHash]).transfer(collateral[seller[identifierHash]] + productPrice[identifierHash]);
+        require(agreements[identifierHash].currentState == State.AWAITING_PAYMENT, "Contract has been locked, action is now impossible");
+        payable(agreements[identifierHash].seller.addr).transfer(agreements[identifierHash].seller.balance);
 
         resetBalances(identifierHash);
         emit AgreementCancelled(msg.sender, identifierHash);
 
-        currentState[identifierHash] = State.EXPIRED;
+        agreements[identifierHash].currentState = State.EXPIRED;
     }
 
     function deposit(bytes32 identifierHash) verifyGuaranteeRatio(identifierHash) notExpired(identifierHash) isAwaitingPayment(identifierHash) public payable {
-        collateral[msg.sender] = msg.value - productPrice[identifierHash];
-        buyer[identifierHash] = msg.sender;
+        agreements[identifierHash].buyer = Agent(msg.sender, msg.value, 0, 0);
 
         emit DepositMade(msg.sender, identifierHash);
 
-        currentState[identifierHash] = State.AWAITING_DELIVERY;
+        agreements[identifierHash].currentState = State.AWAITING_DELIVERY;
     }
 
     function confirmDelivery(bytes32 identifierHash) onlyBuyer(identifierHash) notExpired(identifierHash) isAwaitingDelivery(identifierHash) public {
-        payable(seller[identifierHash]).transfer(collateral[seller[identifierHash]] + (productPrice[identifierHash] * 2));
-        payable(buyer[identifierHash]).transfer(collateral[msg.sender]);
+        payable(agreements[identifierHash].seller.addr).transfer(agreements[identifierHash].seller.balance + agreements[identifierHash].productPrice);
+        payable(agreements[identifierHash].buyer.addr).transfer(agreements[identifierHash].buyer.balance - agreements[identifierHash].productPrice); // Send back buyer's collateral
 
         resetBalances(identifierHash);
         emit DeliveryConfirmed(msg.sender, identifierHash);
 
-        currentState[identifierHash] = State.COMPLETE;
+        agreements[identifierHash].currentState = State.COMPLETE;
     }
 
     function buyerDidNotConfirm(bytes32 identifierHash) onlySeller(identifierHash) isExpired(identifierHash) public {
-        currentState[identifierHash] = State.EXPIRED;
-        payable(seller[identifierHash]).transfer(collateral[seller[identifierHash]] + productPrice[identifierHash]);
+        agreements[identifierHash].currentState = State.EXPIRED;
+        payable(agreements[identifierHash].seller.addr).transfer(agreements[identifierHash].seller.balance);
 
-        emit RefundRequested(msg.sender, identifierHash, collateral[seller[identifierHash]] + productPrice[identifierHash]);
+        emit RefundRequested(msg.sender, identifierHash, agreements[identifierHash].seller.balance);
         resetBalances(identifierHash);
 
-        currentState[identifierHash] = State.EXPIRED;
+        agreements[identifierHash].currentState = State.EXPIRED;
     }
-    
-    //TODO Escrow via encrypt-and-swap
+
+    /* TODO Escrow via encrypt-and-swap -> See https://github.com/CipherSpell/CipherPact/issues/10
+     * Digital products esscrows will be enforced by Public Key Cryptography while physical products
+     * escrows, with Kleros (a decentralized arbitration service) https://www.youtube.com/watch?v=WA0-A9lMaSI
+     */
     function disputeDelivery(bytes32 identifierHash) onlyBuyer(identifierHash) public {
 
     }
