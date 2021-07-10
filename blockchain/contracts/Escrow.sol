@@ -150,8 +150,29 @@ contract Escrow {
      * Digital products esscrows will be enforced by Public Key Cryptography while physical products
      * escrows, with Kleros (a decentralized arbitration service) https://www.youtube.com/watch?v=WA0-A9lMaSI
      */
-    function disputeDelivery(bytes32 identifierHash) onlyBuyer(identifierHash) public {
+    function disputeDelivery(bytes32 identifierHash, string memory _productHash) onlyBuyer(identifierHash) public {
+        /*
+         * Very naive implementation for now (just acting as a placeholder while I research for better methods). Logic
+         * being that the buyer contests the delivery by sending to the contract the hash of the delivered product.
+         * Should there be a mismatch, the seller has cheated and the buyer will receive their collateral back, and the
+         * seller's slashed. Should there be no mismatch, then the buyer has attempted a fraudulent dispute and will have
+         * their collateral slashed.
+         *
+         * Problems with current implementation: Relies on the honesty of the buyer to submit the real productHash
+         * obtained (doesn't make sense if we are advocating for a trustless nature). Because product delivery happens
+         * off-chain, nothing stops the buyer from initiating a dispute with a falsy productHash since the contract
+         * has no way to know.
+         */
 
+        Agent memory buyer = agreements[identifierHash].buyer;
+        Agent memory seller = agreements[identifierHash].seller;
+
+        bool mismatch = keccak256(abi.encode(_productHash)) != keccak256(abi.encode(agreements[identifierHash].productHash));
+
+        payable(mismatch ? buyer.addr : seller.addr).transfer(mismatch ? buyer.balance : seller.balance);
+        resetBalances(identifierHash);
+
+        agreements[identifierHash].currentState = State.COMPLETE;
     }
 
 }
