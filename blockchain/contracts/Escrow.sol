@@ -162,6 +162,13 @@ contract Escrow {
          * obtained (doesn't make sense if we are advocating for a trustless nature). Because product delivery happens
          * off-chain, nothing stops the buyer from initiating a dispute with a falsy productHash since the contract
          * has no way to know.
+         *
+         * Potential solution: Add validators to act as arbitrators -> Seller and Buyer both agree on the number of
+         * validators -> Seller initiates new Agreement with both Seller and Buyer public keys and generated
+         * productHash -> Seller encrypts the digital product with the Buyer's public key -> Seller delivers the digital
+         * product to validators via contract-generated .onion link -> Validators hash the product
+         *
+         * Validators get a percentage of the convicted party's collateral
          */
 
         Agent memory buyer = agreements[identifierHash].buyer;
