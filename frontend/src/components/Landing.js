@@ -1,5 +1,4 @@
 import { getBlockNumber } from '../utils/web3';
-import { useState, useEffect } from "react";
 import {
     getWeb3,
     getContract
