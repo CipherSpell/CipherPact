@@ -1,12 +1,8 @@
-# dependencies
-./frontend/node_modules
-
 # production
-./frontend/build
+./solidity/build
 
 # config
-./blockchain/config
-./frontend/config
+./solidity/config
 
 # misc
 .DS_Store
@@ -19,7 +15,3 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
-backend/.idea
-frontend/.idea
-/.idea
