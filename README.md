@@ -11,7 +11,7 @@
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
-[![LinkedIn][linkedin-shield]][linkedin-url]
+<!-- [![LinkedIn][linkedin-shield]][linkedin-url] -->
 
 
 
@@ -219,6 +219,6 @@ Project Link: [https://github.com/CipherSpell/CipherPact](https://github.com/Cip
 [issues-url]: https://github.com/CipherSpell/CipherPact/issues
 [license-shield]: https://img.shields.io/github/license/CipherSpell/CipherPact?style=for-the-badge
 [license-url]: https://github.com/CipherSpell/CipherPact/blob/master/LICENSE
-[linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
-[linkedin-url]: https://linkedin.com/in/jkleinne
+<!-- [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
+[linkedin-url]: https://linkedin.com/in/jkleinne -->
 [product-screenshot]: images/screenshot.png
