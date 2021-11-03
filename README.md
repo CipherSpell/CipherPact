@@ -83,9 +83,11 @@ and have an action-to-action documentation of the event happening without necess
 may then be referred to in the future by any of the parties involved, for posterity or legal purposes.
 
 Why blockchain-based financial agreements:
-* Removal of trust on a third-party acting as mediator (code is law, the smart contract which is verifiable in this repo will also be verifiable on blockchain explorers)
-* Conserving the anonymity of those involved (no metadata of the product or subject of the agreement itself is ever stored and communication is enforced by Public Key Cryptography)
-* Publicly verifiable (actions taken place within an agreement are documented by the smart contract but cannot be tied back to any of the parties involved)
+* Removal of trust on a third-party acting as mediator, code is law. Because smart contracts and the records they generate are verifiably stored using encryption on a shared ledger, users who don’t know each other can outsource trust to the blockchain rather than relying on a trusted intermediary. 
+* The cryptographic design of the blockchain and its use of distributed nodes makes it extremely resistant to hacks or security breaches.  
+* The contract is executed when one or more of the parties submits proof of the satisfaction of the terms. 
+* Publicly verifiable (actions taken place within an agreement are documented by the smart contract)
+* Using code to implement contract terms avoids ambiguity over contract provisions that can lead to disagreements.
 
 ### Built With
 
