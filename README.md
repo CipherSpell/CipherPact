@@ -162,15 +162,16 @@ By launch, smart contracts should be deployed on the Cardano (solidity via [KEVM
 
 See the [open issues](https://github.com/CipherSpell/CipherPact/issues) for a list of proposed features (and known issues).
 
-#### Q4 2021
+#### Q2 2022
 * Cryptographically-verifiable delivery disputes
 * Escrow contract -> Solidity to Plutus port
 * Initial minimal build of the client-side application
-#### Q1-Q2 2022
+#### Q3-Q4 2022
 * Escrow Contract -> Plutus to ErgoScript port
 * Zero-Coupon bonds contract implementation in Plutus and ErgoScript
+* Legally-binding Payroll contract
 * UI design of the client-side application
-#### Q3-Q4 2022
+#### 2023
 * UI implementation of the client-side application
 * Contract For Differences (CFDs) contract implementation in Plutus and ErgoScript
 * Hell or High Water contract implementation in Plutus and ErgoScript
