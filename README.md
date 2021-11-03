@@ -82,7 +82,7 @@ a mediator or external platform hosting an exchange between two parties with a s
 and have an action-to-action documentation of the event happening without necessarily divulging the identity of the two parties, which 
 may then be referred to in the future by any of the parties involved, for posterity or legal purposes.
 
-Why blockchain-based financial agreements:
+### Why blockchain-based financial agreements:
 * Removal of trust on a third-party acting as mediator, code is law. Because smart contracts and the records they generate are verifiably stored using encryption on a shared ledger, users who don’t know each other can outsource trust to the blockchain rather than relying on a trusted intermediary. 
 * The cryptographic design of the blockchain and its use of distributed nodes makes it extremely resistant to hacks or security breaches.  
 * The contract is executed when one or more of the parties submits proof of the satisfaction of the terms. 
